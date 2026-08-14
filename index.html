@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="description" content="RIVALS by Tempest_YT — a neon arena FPS. Survive the grid." />
+<meta name="theme-color" content="#07070d" />
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+<title>RIVALS — by Tempest_YT</title>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="vig"></div>
+<div id="scanlines"></div>
+<div id="flash"></div>
+
+<!-- ============================ TOP-RIGHT SYSTEM CHIPS ============================ -->
+<div id="syschips" class="ui-interactive">
+  <button class="chip" id="themebtn" title="Toggle light / dark  [T]" aria-label="Toggle theme">
+    <span class="chipicon" id="themeicon">◐</span><span class="chiptext" id="themetext">DARK</span>
+  </button>
+  <button class="chip" id="mutebtn" title="Mute  [M]" aria-label="Toggle sound">
+    <span class="chipicon" id="muteicon">♪</span><span class="chiptext" id="mutetext">SOUND</span>
+  </button>
+</div>
+
+<!-- ============================ INTRO ============================ -->
+<div class="screen intro" id="intro">
+  <div class="crt-on" id="crton"></div>
+
+  <div class="boot" id="boot">
+    <pre class="bootlines" id="bootlines"></pre>
+    <div class="bootbar"><div class="bootbarfill" id="bootbarfill"></div></div>
+    <div class="bootpct" id="bootpct">0%</div>
+  </div>
+
+  <div class="intrologo" id="intrologo">
+    <div class="presents" id="presents">TEMPEST<span>//</span>NET PRESENTS</div>
+    <div class="letters" id="letters" aria-label="RIVALS"></div>
+    <div class="byline" id="byline">BY <b>TEMPEST_YT</b></div>
+    <div class="introtag" id="introtag">SURVIVE&nbsp;&nbsp;THE&nbsp;&nbsp;GRID</div>
+  </div>
+
+  <button class="skip ui-interactive" id="skipbtn">SKIP ▸</button>
+</div>
+
+<!-- ============================ MAIN MENU ============================ -->
+<div class="screen hidden" id="menu">
+  <div class="menu-inner">
+    <div class="logo">RIV<em>ALS</em></div>
+    <div class="tag">BY TEMPEST_YT — SURVIVE THE GRID</div>
+
+    <div class="bests" id="bests"></div>
+
+    <div class="ctlrow ui-interactive">
+      <span class="ctllabel lab-mouse">MOUSE + WASD</span>
+      <div class="switch" data-switch><div class="knob"></div></div>
+      <span class="ctllabel lab-btn">ON-SCREEN BUTTONS</span>
+    </div>
+
+    <div class="menubtns ui-interactive">
+      <button class="btn" id="startbtn">JACK IN</button>
+      <button class="btn ghost" id="briefbtn">BRIEFING</button>
+      <button class="btn ghost" id="setbtn">SETTINGS</button>
+      <button class="btn ghost" id="replaybtn">REPLAY INTRO</button>
+    </div>
+
+    <div class="keys" id="deskkeys">
+      <div class="key"><div class="kcap">W A S D</div>MOVE</div>
+      <div class="key"><div class="kcap">SHIFT</div>SPRINT</div>
+      <div class="key"><div class="kcap">SPACE</div>JUMP</div>
+      <div class="key"><div class="kcap">E</div>DASH</div>
+      <div class="key"><div class="kcap">CLICK / Q</div>FIRE</div>
+      <div class="key"><div class="kcap">RIGHT / C</div>AIM</div>
+      <div class="key"><div class="kcap">R</div>RELOAD</div>
+      <div class="key"><div class="kcap">1 2 3</div>WEAPONS</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ BRIEFING ============================ -->
+<div class="screen hidden modal" id="briefing">
+  <div class="panel">
+    <h2>MISSION BRIEFING</h2>
+    <div class="brief-grid">
+      <div class="brief-card">
+        <h3>THE GRID</h3>
+        <p>Endless waves of Glowbots spawn into the arena. Clear a wave, earn an upgrade, face a bigger one. Every fifth wave sends an <b>OVERLORD</b>.</p>
+      </div>
+      <div class="brief-card">
+        <h3>HOSTILES</h3>
+        <ul>
+          <li><b>GLOWBOT</b> — baseline chaser.</li>
+          <li><b>ZIPBOT</b> — fast, fragile, swarms.</li>
+          <li><b>TITAN</b> — heavy armour, heavy fists.</li>
+          <li><b>SEER</b> — keeps range, throws plasma.</li>
+          <li><b>OVERLORD</b> — boss. Summons minions.</li>
+        </ul>
+      </div>
+      <div class="brief-card">
+        <h3>ARSENAL</h3>
+        <ul>
+          <li><b>PULSE RIFLE</b> — full auto, all-rounder.</li>
+          <li><b>SCATTERGUN</b> — 9 pellets, close range. <i>Wave 2</i></li>
+          <li><b>RAILGUN</b> — hold to charge, pierces a whole line. <i>Wave 4</i></li>
+        </ul>
+      </div>
+      <div class="brief-card">
+        <h3>SURVIVAL</h3>
+        <ul>
+          <li>Headshots deal massive bonus damage.</li>
+          <li>Chain frags to build a score combo.</li>
+          <li><b>DASH [E]</b> to phase out of melee.</li>
+          <li>Grab drops: shield, ammo, damage, rapid fire, purge.</li>
+        </ul>
+      </div>
+    </div>
+    <button class="btn" data-close="briefing">BACK</button>
+  </div>
+</div>
+
+<!-- ============================ SETTINGS ============================ -->
+<div class="screen hidden modal" id="settings">
+  <div class="panel">
+    <h2>SETTINGS</h2>
+    <div class="setrow">
+      <label for="sens">LOOK SENSITIVITY</label>
+      <input type="range" id="sens" min="0.2" max="3" step="0.05" />
+      <span class="setval" id="sensval">1.00</span>
+    </div>
+    <div class="setrow">
+      <label for="vol">VOLUME</label>
+      <input type="range" id="vol" min="0" max="1" step="0.01" />
+      <span class="setval" id="volval">70%</span>
+    </div>
+    <div class="setrow">
+      <label for="invert">INVERT Y AXIS</label>
+      <input type="checkbox" id="invert" />
+      <span class="setval"></span>
+    </div>
+    <div class="setrow">
+      <label for="radartoggle">SHOW RADAR</label>
+      <input type="checkbox" id="radartoggle" />
+      <span class="setval"></span>
+    </div>
+    <div class="setrow">
+      <label for="themeselect">THEME</label>
+      <select id="themeselect">
+        <option value="dark">NIGHT GRID</option>
+        <option value="light">DAY GRID</option>
+      </select>
+      <span class="setval"></span>
+    </div>
+    <div class="setrow">
+      <label>PERSONAL BESTS</label>
+      <button class="btn tiny ghost" id="resetbests">RESET</button>
+      <span class="setval"></span>
+    </div>
+    <button class="btn" data-close="settings">BACK</button>
+  </div>
+</div>
+
+<!-- ============================ PAUSE ============================ -->
+<div class="screen hidden modal" id="pause">
+  <div class="panel narrow">
+    <h2>PAUSED</h2>
+    <div class="pausestats" id="pausestats"></div>
+    <div class="ctlrow ui-interactive">
+      <span class="ctllabel lab-mouse">MOUSE + WASD</span>
+      <div class="switch" data-switch><div class="knob"></div></div>
+      <span class="ctllabel lab-btn">ON-SCREEN BUTTONS</span>
+    </div>
+    <button class="btn" id="resumebtn">RESUME</button>
+    <button class="btn ghost" id="pausesetbtn">SETTINGS</button>
+    <button class="btn ghost danger" id="quitbtn">ABANDON RUN</button>
+  </div>
+</div>
+
+<!-- ============================ UPGRADE PICKER ============================ -->
+<div class="screen hidden" id="upgrade">
+  <div class="upgrade-inner">
+    <div class="uptitle">WAVE <span id="upwave">1</span> CLEAR</div>
+    <div class="upsub">CHOOSE AN AUGMENT</div>
+    <div class="cards" id="upcards"></div>
+    <div class="uphint">CLICK A CARD — OR PRESS 1 / 2 / 3</div>
+  </div>
+</div>
+
+<!-- ============================ DEATH ============================ -->
+<div class="screen hidden" id="death">
+  <div class="menu-inner">
+    <div class="logo dead">SIGNAL <em>LOST</em></div>
+    <div id="finalstats"></div>
+    <div id="newrecord" class="newrecord"></div>
+    <div class="menubtns ui-interactive">
+      <button class="btn" id="retrybtn">REBOOT RUN</button>
+      <button class="btn ghost" id="menubtn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ HUD ============================ -->
+<div id="hud">
+  <div id="xh"><span class="t"></span><span class="b"></span><span class="l"></span><span class="r"></span><span class="dot"></span></div>
+  <div id="hitmark"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+  <div id="hitdirs"></div>
+
+  <div id="hpwrap">
+    <div id="hplabel">SHIELD <span id="hptext">100</span></div>
+    <div id="hpbar"><div id="hpfill"></div></div>
+    <div id="dashrow">
+      <span class="dashlabel">DASH</span>
+      <span id="dashmeter"></span>
+      <span id="dashbar"><span id="dashfill"></span></span>
+    </div>
+  </div>
+
+  <div id="ammowrap">
+    <div id="ammo">24<small>/24</small></div>
+    <div id="reloadhint"></div>
+    <div id="weapons"></div>
+    <div id="chargewrap"><div id="chargefill"></div></div>
+  </div>
+
+  <div id="wavewrap">
+    <div id="wavelabel">WAVE</div>
+    <div id="wavenum">1</div>
+    <div id="left"></div>
+  </div>
+
+  <div id="bosswrap">
+    <div id="bossname">OVERLORD</div>
+    <div id="bossbar"><div id="bossfill"></div></div>
+  </div>
+
+  <div id="scorewrap">
+    <div id="kills">0</div>
+    <div id="scorelabel">FRAGGED</div>
+    <div id="score">0</div>
+    <div id="pointslabel">POINTS</div>
+    <div id="combo"></div>
+  </div>
+
+  <div id="feed"></div>
+  <div id="buffs"></div>
+
+  <div id="radarwrap"><canvas id="radar" width="150" height="150"></canvas><div class="radarlabel">GRID SCAN</div></div>
+
+  <div id="announce"><div class="big"></div><div class="sub"></div></div>
+  <div id="watermark">RIVALS · TEMPEST_YT</div>
+</div>
+
+<!-- ============================ TOUCH CONTROLS ============================ -->
+<div id="touchui">
+  <div id="stickzone"></div>
+  <div id="lookzone"></div>
+  <div id="stickbase"></div>
+  <div id="sticknub"></div>
+  <button class="tbtn" id="firebtn">FIRE</button>
+  <button class="tbtn" id="jumpbtn">JUMP</button>
+  <button class="tbtn" id="dashbtn">DASH</button>
+  <button class="tbtn" id="rlbtn">R</button>
+  <button class="tbtn" id="adsbtn">AIM</button>
+  <button class="tbtn" id="swapbtn">SWAP</button>
+</div>
+
+<div id="hudswitch" class="ui-interactive">
+  <span class="ctllabel lab-mouse">MOUSE</span>
+  <div class="switch" data-switch><div class="knob"></div></div>
+  <span class="ctllabel lab-btn">BUTTONS</span>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
