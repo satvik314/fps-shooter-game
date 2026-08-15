@@ -1,29 +1,40 @@
 /**
- * The intro. A CRT power-on, a terminal boot log, then RIVALS slams onto the
- * screen letter by letter and hands the credit to TEMPEST_YT.
+ * The entry experience, in three beats:
  *
- * The whole thing is one abortable timeline — `skip()` at any point resolves
+ *   1. GATE    — "You are now entering Vedaant Singh's universe. Are you ready?"
+ *                Waiting for a real click here also satisfies the browser's
+ *                autoplay policy, so every sound after it is allowed to play.
+ *   2. JOURNEY — a wormhole flight rendered in 3D (see wormhole.js), with
+ *                status beats and a charge bar overlaid.
+ *   3. ARRIVAL — RIVALS slams in letter by letter, credited to TEMPEST_YT.
+ *
+ * The whole thing is one abortable timeline: `skip()` at any point resolves
  * immediately and leaves the DOM in a clean state.
  */
 
 import { sfx, unlockAudio } from '../core/audio.js';
+import { Wormhole } from './wormhole.js';
 
-const BOOT_LINES = [
-  { text: 'TEMPEST//NET  ::  GRID UPLINK v4.2', cls: '' },
-  { text: '> establishing handshake ............ [OK]', cls: 'ok' },
-  { text: '> neural signature verified ......... [OK]', cls: 'ok' },
-  { text: '> loading arena :: THE GRID ......... [OK]', cls: 'ok' },
-  { text: '> waking GLOWBOT swarm .............. [ONLINE]', cls: 'ok' },
-  { text: '! HOSTILE DENSITY: CRITICAL', cls: 'warn' },
-  { text: '> operator, you are cleared to jack in_', cls: '' },
+const WARP_BEATS = [
+  { at: 0.02, text: 'LEAVING EARTH ORBIT' },
+  { at: 0.24, text: 'FOLDING SPACETIME' },
+  { at: 0.46, text: "VEDAANT'S UNIVERSE AHEAD" },
+  { at: 0.68, text: 'THE GRID IS WAKING UP' },
+  { at: 0.88, text: 'HOLD ON…' },
 ];
 
 export class Intro {
-  constructor() {
+  /** @param {import('../game/game.js').Game} game  supplies the renderer */
+  constructor(game) {
+    this.game = game;
+
+    this.gate = document.getElementById('gate');
+    this.gateBtn = document.getElementById('gatebtn');
     this.el = document.getElementById('intro');
-    this.bootLines = document.getElementById('bootlines');
-    this.barFill = document.getElementById('bootbarfill');
-    this.pct = document.getElementById('bootpct');
+    this.warpUI = document.getElementById('warpui');
+    this.warpLine = document.getElementById('warpline');
+    this.warpFill = document.getElementById('warpbarfill');
+    this.warpPct = document.getElementById('warppct');
     this.presents = document.getElementById('presents');
     this.letters = document.getElementById('letters');
     this.byline = document.getElementById('byline');
@@ -34,20 +45,38 @@ export class Intro {
     this._timers = new Set();
     this._rafs = new Set();
     this._aborted = false;
-    this._resolve = null;
     this._running = false;
+    this._phase = 'idle'; // 'gate' | 'warp' | 'logo'
+    this._gateResolve = null;
+
+    this.gateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._confirmGate();
+    });
 
     this.skipBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.skip();
     });
-    this._keyHandler = (e) => {
+
+    addEventListener('keydown', (e) => {
       if (!this._running) return;
-      if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') this.skip();
-    };
-    addEventListener('keydown', this._keyHandler);
-    this.el.addEventListener('click', () => this._running && this.skip());
+      const go = e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape';
+      if (!go) return;
+      e.preventDefault();
+      // at the gate these keys answer "yes"; later they skip ahead
+      if (this._phase === 'gate') this._confirmGate();
+      else this.skip();
+    });
+
+    this.el.addEventListener('click', () => {
+      if (this._running && this._phase !== 'gate') this.skip();
+    });
+
+    addEventListener('resize', () => this.wormhole?.resize());
   }
+
+  /* ---------------- timing helpers ---------------- */
 
   _wait(ms) {
     return new Promise((resolve) => {
@@ -78,10 +107,12 @@ export class Intro {
     this._rafs.clear();
   }
 
+  /* ---------------- lifecycle ---------------- */
+
   /**
    * Runs the sequence. Resolves when finished or skipped.
-   * `short` drops the boot log and goes straight to the logo — used on repeat
-   * visits so the title still lands without making anyone sit through it twice.
+   * `short` shortens the journey for repeat visits — the gate and the logo
+   * always play in full, since those are the point.
    */
   play({ short = false } = {}) {
     if (this._running) return this._promise;
@@ -90,17 +121,18 @@ export class Intro {
     this._short = short;
     this._promise = new Promise((resolve) => (this._resolve = resolve));
     this._reset();
-    unlockAudio();
     this._run();
     return this._promise;
   }
 
   _reset() {
-    this.el.classList.remove('hidden', 'logo-phase', 'rumble');
-    this.el.classList.add('booting');
-    this.bootLines.textContent = '';
-    this.barFill.style.width = '0%';
-    this.pct.textContent = '0%';
+    document.body.classList.add('intro-active');
+    this.gate.classList.remove('hidden');
+    this.el.classList.remove('hidden', 'warping', 'logo-phase', 'rumble');
+    this.skipBtn.style.display = 'none';
+    this.warpLine.textContent = '';
+    this.warpFill.style.width = '0%';
+    this.warpPct.textContent = '0%';
     this.presents.classList.remove('in');
     this.byline.classList.remove('in');
     this.tagline.classList.remove('in');
@@ -108,29 +140,104 @@ export class Intro {
   }
 
   async _run() {
-    sfx.boot();
-
-    // --- phase 1: CRT power-on ---
-    await this._wait(this._short ? 260 : 520);
+    await this._gatePhase();
     if (this._aborted) return;
 
-    // --- phase 2: terminal boot log ---
-    if (!this._short) await this._bootLog();
+    await this._warpPhase();
     if (this._aborted) return;
 
-    // --- phase 3: riser into the whiteout ---
-    sfx.riser();
-    await this._wait(this._short ? 420 : 900);
-    if (this._aborted) return;
+    await this._logoPhase();
+    this._finish();
+  }
+
+  /* ---------------- 1. the gate ---------------- */
+
+  _gatePhase() {
+    this._phase = 'gate';
+    return new Promise((resolve) => {
+      this._gateResolve = resolve;
+    });
+  }
+
+  _confirmGate() {
+    if (this._phase !== 'gate' || !this._gateResolve) return;
+    // this click is the user gesture the audio context has been waiting for
+    unlockAudio();
+    sfx.enter();
+    this.gate.classList.add('hidden');
+    const resolve = this._gateResolve;
+    this._gateResolve = null;
+    this._phase = 'warp';
+    const id = setTimeout(resolve, 420);
+    this._timers.add(id);
+  }
+
+  /* ---------------- 2. the journey ---------------- */
+
+  async _warpPhase() {
+    const duration = this._short ? 3.4 : 7;
+    this.wormhole = new Wormhole(this.game.renderer, duration);
+    this.wormhole.start();
+    this.game.setRenderOverride((dt) => {
+      this.wormhole.update(dt);
+      this.wormhole.render();
+    });
+
+    this.el.classList.add('warping');
+    this.skipBtn.style.display = '';
+    sfx.warpIn();
+
+    let nextBeat = 0;
+    let pulseAt = 0;
+
+    while (!this._aborted && this.wormhole.progress < 1) {
+      await this._frame();
+      const p = this.wormhole.progress;
+      this.warpFill.style.width = p * 100 + '%';
+      this.warpPct.textContent = Math.round(p * 100) + '%';
+
+      while (nextBeat < WARP_BEATS.length && p >= WARP_BEATS[nextBeat].at) {
+        this._showBeat(WARP_BEATS[nextBeat].text);
+        nextBeat++;
+      }
+      // rising ticks that speed up as the tunnel does
+      if (p > pulseAt) {
+        sfx.warpPulse(Math.floor(p * 10));
+        pulseAt = p + Math.max(0.03, 0.12 - p * 0.09);
+      }
+    }
+
+    this._endWarp();
+  }
+
+  _showBeat(text) {
+    this.warpLine.textContent = text;
+    this.warpLine.classList.remove('pop');
+    void this.warpLine.offsetWidth;
+    this.warpLine.classList.add('pop');
+  }
+
+  /** Hand rendering back to the game and tear the tunnel down. */
+  _endWarp() {
+    if (!this.wormhole) return;
+    this.game.clearRenderOverride();
+    this.wormhole.dispose();
+    this.wormhole = null;
+    this.el.classList.remove('warping');
+  }
+
+  /* ---------------- 3. arrival ---------------- */
+
+  async _logoPhase() {
+    this._phase = 'logo';
+    sfx.arrive();
     this._popFlash();
-    this.el.classList.remove('booting');
     this.el.classList.add('logo-phase');
-    await this._wait(120);
+    await this._wait(160);
     if (this._aborted) return;
 
-    // --- phase 4: RIVALS, one letter at a time ---
     this.presents.classList.add('in');
-    await this._wait(this._short ? 300 : 620);
+    await this._wait(this._short ? 320 : 600);
     if (this._aborted) return;
 
     const word = 'RIVALS';
@@ -150,7 +257,6 @@ export class Intro {
     await this._wait(280);
     if (this._aborted) return;
 
-    // --- phase 5: the credit ---
     this.byline.classList.add('in');
     sfx.logo();
     this._popFlash(0.35);
@@ -159,67 +265,6 @@ export class Intro {
     this.tagline.classList.add('in');
 
     await this._wait(this._short ? 1200 : 1700);
-    this._finish();
-  }
-
-  /**
-   * Types the terminal boot log, filling the progress bar as it goes.
-   *
-   * Driven by elapsed time on rAF rather than one setTimeout per character, so
-   * the log always finishes in the same ~3s whether the machine is running at
-   * 144fps or crawling — a per-character timer would stall on a slow frame.
-   */
-  async _bootLog() {
-    const CHARS_PER_SEC = 78;
-    const flat = [];
-    BOOT_LINES.forEach((line, li) => {
-      for (const ch of line.text) flat.push({ ch, li, cls: line.cls });
-      flat.push({ ch: '\n', li, cls: line.cls, pause: li === BOOT_LINES.length - 1 ? 0.24 : 0.09 });
-    });
-
-    let shown = 0;
-    let budget = 0;
-    let hold = 0;
-    let last = performance.now();
-    let span = null;
-    let curLine = -1;
-
-    while (shown < flat.length) {
-      if (this._aborted) return;
-      await this._frame();
-      const now = performance.now();
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-
-      if (hold > 0) {
-        hold -= dt;
-        continue;
-      }
-      budget += dt * CHARS_PER_SEC;
-
-      while (budget >= 1 && shown < flat.length) {
-        const item = flat[shown++];
-        budget -= 1;
-        if (item.ch === '\n') {
-          this.bootLines.appendChild(document.createTextNode('\n'));
-          span = null;
-          hold = item.pause;
-          break;
-        }
-        if (!span || item.li !== curLine) {
-          span = document.createElement('span');
-          if (item.cls) span.className = item.cls;
-          this.bootLines.appendChild(span);
-          curLine = item.li;
-        }
-        span.textContent += item.ch;
-        if (shown % 3 === 0) sfx.type();
-      }
-
-      const p = Math.round((shown / flat.length) * 100);
-      this.barFill.style.width = p + '%';
-      this.pct.textContent = p + '%';
-    }
   }
 
   _popFlash(strength = 1) {
@@ -238,10 +283,13 @@ export class Intro {
     this.el.classList.add('rumble');
   }
 
+  /* ---------------- skip / teardown ---------------- */
+
   skip() {
-    if (!this._running) return;
+    if (!this._running || this._phase === 'gate') return;
     this._aborted = true;
     this._clearTimers();
+    this._endWarp();
     sfx.ui();
     this._finish();
   }
@@ -249,11 +297,17 @@ export class Intro {
   _finish() {
     if (!this._running) return;
     this._running = false;
+    this._phase = 'idle';
+    this._gateResolve = null;
     this._clearTimers();
+    this._endWarp();
+    document.body.classList.remove('intro-active');
+    this.gate.classList.add('hidden');
     this.el.classList.add('hidden');
+    this.skipBtn.style.display = 'none';
     this.flash.classList.remove('pop');
     const id = setTimeout(() => {
-      this.el.classList.remove('booting', 'logo-phase');
+      this.el.classList.remove('warping', 'logo-phase');
     }, 500);
     this._timers.add(id);
     this._resolve?.();

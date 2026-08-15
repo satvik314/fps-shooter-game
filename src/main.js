@@ -122,12 +122,12 @@ if (
 paintSwitches();
 
 /* ---------------- intro ---------------- */
-const intro = new Intro();
+const intro = new Intro(game);
 
 /**
- * First visit gets the full boot-log sequence. Repeat visits get the short cut
- * — the title still lands, without sitting through the terminal twice.
- * "REPLAY INTRO" always forces the full version.
+ * The gate and the RIVALS arrival always play in full — they're the point.
+ * Repeat visits just get a shorter trip through the wormhole; "REPLAY INTRO"
+ * restores the full-length journey.
  */
 function runIntro(full) {
   screens.hideAll();
