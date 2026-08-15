@@ -17,6 +17,14 @@ import { Enemy, ENEMY_TYPES, rollWaveComposition } from './enemy.js';
 import { WEAPONS, makeLoadout } from './weapons.js';
 import { baseMods, rollUpgrades } from './upgrades.js';
 import { Pickup, rollPickupType, PICKUP_TYPES } from './pickups.js';
+import {
+  buildMedkit,
+  animateMedkit,
+  healCurve,
+  MEDKIT_HEAL,
+  MEDKIT_MAX,
+  MEDKIT_DURATION,
+} from './medkit.js';
 
 const COMBO_WINDOW = 2.6;
 const STREAKS = [
@@ -76,6 +84,10 @@ export class Game {
     this.muzzle.visible = false;
     this.gunGroup.add(this.muzzle);
 
+    this.medkitKit = buildMedkit();
+    this.medkitKit.group.visible = false;
+    this.camera.add(this.medkitKit.group);
+
     /* ---------- state ---------- */
     this.player = {
       pos: new THREE.Vector3(0, 1.7, 18),
@@ -105,6 +117,8 @@ export class Game {
     this.loadout = makeLoadout();
     this.activeWeapon = 0;
     this.takenUpgrades = {};
+    this.medkits = 0;
+    this.healing = null; // { t, gained } while a medkit is being applied
 
     this.wave = 0;
     this.kills = 0;
@@ -242,6 +256,8 @@ export class Game {
     this.boss = null;
     this.pendingWave = false;
     this.timeScale = this.targetTimeScale = 1;
+    this.medkits = 0;
+    this.endHeal();
 
     this.equip(0, true);
     this.hud.buildWeapons(this.loadout);
@@ -252,6 +268,7 @@ export class Game {
     this.hud.setCombo(0, 0, 1);
     this.hud.setBoss(null);
     this.hud.damageFlash(false);
+    this.hud.setMedkits(0, MEDKIT_MAX);
     this.refreshVitals();
   }
 
@@ -301,7 +318,7 @@ export class Game {
   }
 
   refreshVitals() {
-    this.hud.setHp(this.player.hp, this.maxHp(), this.player.overshield);
+    this.hud.setHp(this.player.hp, this.maxHp(), this.player.overshield, !!this.healing);
     const slot = this.loadout[this.activeWeapon];
     this.hud.setAmmo(slot.ammo, this.magSize(slot), slot.reloading);
     this.hud.setDash(
@@ -309,6 +326,7 @@ export class Game {
       this.player.mods.dashCharges,
       Math.min(1, this.player.dashRecharge / this.player.mods.dashCd)
     );
+    this.hud.setMedkits(this.medkits, MEDKIT_MAX);
   }
 
   heal(amount) {
@@ -388,6 +406,95 @@ export class Game {
   }
 
   /* ================================================================
+     medkit
+     ================================================================ */
+
+  /** One kit per wave, up to a small stockpile. */
+  grantMedkit() {
+    if (this.medkits >= MEDKIT_MAX) {
+      this.hud.feed('MEDKIT STOCK FULL');
+      return;
+    }
+    this.medkits++;
+    sfx.medkitGet();
+    this.hud.feed('✚ MEDKIT RECEIVED — [H] TO USE', 'good');
+    this.refreshVitals();
+  }
+
+  /**
+   * Committed heal: the rifle drops out of view for the length of the
+   * animation, so topping up costs a second of firepower.
+   */
+  useMedkit() {
+    if (this.mode !== 'playing' || this.player.dead || this.healing) return;
+    if (this.medkits <= 0) {
+      sfx.healDenied();
+      this.hud.healBlocked('NO MEDKIT');
+      return;
+    }
+    if (this.player.hp >= this.maxHp()) {
+      sfx.healDenied();
+      this.hud.healBlocked('SHIELD ALREADY FULL');
+      return;
+    }
+
+    this.medkits--;
+    this.healing = { t: 0, gained: 0 };
+    sfx.heal();
+
+    if (this._equipped) this._equipped.visible = false;
+    this.muzzle.visible = false;
+    this.medkitKit.group.visible = true;
+    animateMedkit(this.medkitKit, 0);
+
+    this.hud.healing(true);
+    this.hud.setHealAmount(0);
+    this.fx.ring(this.player.pos.clone().setY(0.15), neon(2), 7, 0.7);
+    this.refreshVitals();
+  }
+
+  updateHeal(dt) {
+    const h = this.healing;
+    if (!h) return;
+
+    h.t += dt;
+    const p = Math.min(1, h.t / MEDKIT_DURATION);
+    animateMedkit(this.medkitKit, p);
+
+    // apply the shield along the eased curve so the bar visibly fills
+    const target = healCurve(p) * MEDKIT_HEAL;
+    const delta = target - h.gained;
+    if (delta > 0) {
+      const before = this.player.hp;
+      this.player.hp = Math.min(this.maxHp(), this.player.hp + delta);
+      h.gained = target;
+      if (this.player.hp > before) this.hud.setHealAmount(h.gained);
+      this.refreshVitals();
+    }
+
+    // motes rising past the view
+    h.spark = (h.spark ?? 0) - dt;
+    if (h.spark <= 0 && p < 0.9) {
+      h.spark = 0.07;
+      this.fx.burst(this.player.pos.clone().setY(0.4), neon(2), 3, 0.5);
+    }
+
+    if (p >= 1) {
+      this.fx.ring(this.player.pos.clone().setY(0.15), neon(2), 5, 0.4);
+      this.endHeal();
+    }
+  }
+
+  endHeal() {
+    if (this.medkitKit) this.medkitKit.group.visible = false;
+    if (this._equipped) this._equipped.visible = true;
+    this.healing = null;
+    this.hud.healing(false);
+    this.hud.setHealAmount(0);
+    this.refreshVitals();
+  }
+
+  /* ================================================================
      weapons
      ================================================================ */
 
@@ -397,7 +504,7 @@ export class Game {
 
   equip(index, silent) {
     const slot = this.loadout[index];
-    if (!slot || !slot.unlocked) return;
+    if (!slot || !slot.unlocked || this.healing) return;
     if (this.activeWeapon === index && this._equipped) return;
 
     if (this._equipped) {
@@ -445,7 +552,7 @@ export class Game {
 
   tryReload() {
     const slot = this.loadout[this.activeWeapon];
-    if (slot.reloading || slot.ammo >= this.magSize(slot) || this.player.dead) return;
+    if (slot.reloading || slot.ammo >= this.magSize(slot) || this.player.dead || this.healing) return;
     slot.reloading = true;
     slot.reloadT = slot.def.reloadTime * this.player.mods.reloadMul;
     slot.charge = 0;
@@ -462,7 +569,7 @@ export class Game {
   shoot(power = 1) {
     const slot = this.loadout[this.activeWeapon];
     const def = slot.def;
-    if (slot.reloading || slot.cd > 0 || this.player.dead) return;
+    if (slot.reloading || slot.cd > 0 || this.player.dead || this.healing) return;
     if (slot.ammo <= 0) {
       sfx.empty();
       this.tryReload();
@@ -555,11 +662,29 @@ export class Game {
     const m = this.player.mods;
     const boost = this.hasBuff('damage') ? 2 : 1;
     let dmg = rng(def.dmg[0], def.dmg[1]) * m.dmg * power * boost;
+    let oneShot = false;
+
     if (isHead) {
-      dmg *= def.headMult * m.headMul;
+      if (def.instantHeadshot && !enemy.boss) {
+        // the sniper drops anything short of a boss outright
+        dmg = enemy.hp;
+        oneShot = true;
+      } else if (def.instantHeadshot) {
+        // an Overlord shrugs off the one-shot but still takes a huge bite,
+        // otherwise the boss fight stops existing
+        dmg = Math.max(dmg, enemy.maxhp * 0.25);
+      } else {
+        dmg *= def.headMult * m.headMul;
+      }
       sfx.head();
     }
+
     enemy.lastHitHead = isHead;
+    enemy.lastHitOneShot = oneShot;
+    if (oneShot) {
+      sfx.oneShot();
+      this.fx.ring(point.clone(), neon(3), 5, 0.4);
+    }
     enemy.damage(Math.round(dmg), isHead, point);
   }
 
@@ -587,7 +712,8 @@ export class Game {
     }));
     this.hud.setHostiles(comp.length);
 
-    // wave-start overshield from the OVERSHIELD augment
+    // a fresh medkit every wave, plus any OVERSHIELD augment
+    this.grantMedkit();
     this.player.overshield = this.player.mods.overshield;
     setMusicIntensity(Math.min(1, this.wave / 12));
     this.refreshVitals();
@@ -637,10 +763,12 @@ export class Game {
     this.hud.setKills(this.kills);
     this.hud.setScore(this.score);
     this.hud.setCombo(this.combo, this.comboT, COMBO_WINDOW);
-    this.hud.feed(
-      (isHead ? 'HEADSHOT ✕ ' : 'FRAGGED ✕ ') + enemy.type.name,
-      isHead ? 'head' : ''
-    );
+    const how = enemy.lastHitOneShot
+      ? 'ONE SHOT ✕ ELIMINATED '
+      : isHead
+        ? 'HEADSHOT ✕ ELIMINATED '
+        : 'ELIMINATED ';
+    this.hud.feed(how + enemy.type.name, isHead ? 'head' : 'good');
     sfx.kill();
 
     const m = this.player.mods;
@@ -842,6 +970,7 @@ export class Game {
     p.pitch = Math.max(-1.45, Math.min(1.45, p.pitch + look.y));
 
     const edges = input.consumeEdges();
+    if (edges.heal) this.useMedkit();
     if (edges.reload) this.tryReload();
     if (edges.weapon === 'next') this.cycleWeapon(1);
     else if (edges.weapon === 'prev') this.cycleWeapon(-1);
@@ -934,13 +1063,15 @@ export class Game {
     this.camera.rotation.x = p.pitch + this.recoil;
     this.camera.rotation.z = sway * 0.4;
 
-    const targetFov = input.ads ? 52 : sprinting ? 82 : 75;
+    const activeDef = this.loadout[this.activeWeapon].def;
+    const scoped = input.ads && !this.healing;
+    const targetFov = scoped ? (activeDef.adsFov ?? 52) : sprinting ? 82 : 75;
     this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 9);
     this.camera.updateProjectionMatrix();
 
     // viewmodel
     const slot = this.loadout[this.activeWeapon];
-    const adsPull = input.ads ? 1 : 0;
+    const adsPull = input.ads && !this.healing ? 1 : 0;
     const reloadDip = slot.reloading ? 0.18 : 0;
     const reloadWobble = slot.reloading ? Math.sin(this.clock.elapsedTime * 20) * 0.012 : 0;
     this.gunGroup.position.x += (0.26 * (1 - adsPull) + sway - this.gunGroup.position.x) * Math.min(1, dt * 14);
@@ -950,7 +1081,12 @@ export class Game {
     this.gunGroup.position.z = -0.78 + this.gunKick * 0.1 + adsPull * 0.14;
     this.gunGroup.rotation.x = this.gunKick * 0.35 + reloadDip * 2.6;
     this.gunGroup.rotation.y = 0.06 * (1 - adsPull);
-    this.hud.setAds(input.ads);
+    // a scoped weapon replaces its own viewmodel with the scope overlay —
+    // leaving the rifle in frame just blocks the shot
+    const throughScope = scoped && !!activeDef.scope;
+    if (this._equipped) this._equipped.visible = !this.healing && !throughScope;
+    this.hud.setAds(scoped);
+    this.hud.setScope(throughScope);
   }
 
   /* ================================================================
@@ -975,7 +1111,7 @@ export class Game {
       }
     });
 
-    const firing = !!this.input?.firing;
+    const firing = !!this.input?.firing && !this.healing;
 
     if (def.charge > 0) {
       if (firing && !slot.reloading && slot.ammo > 0) {
@@ -1096,6 +1232,7 @@ export class Game {
       if (p.mods.regen > 0 && p.hp < this.maxHp()) this.heal(p.mods.regen * dt);
 
       this.movePlayer(dt);
+      this.updateHeal(dt);
       this.updateWeapons(dt);
       this.updateSpawns(dt);
       for (const e of [...this.enemies]) e.update(dt, t);

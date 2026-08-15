@@ -27,6 +27,11 @@ export class HUD {
     this.weaponsEl = $('weapons');
     this.dashEl = $('dashmeter');
     this.dashFill = $('dashfill');
+    this.medMeter = $('medmeter');
+    this.medRow = $('medrow');
+    this.healNum = $('healnum');
+    this.healVig = $('healvig');
+    this.scope = $('scope');
     this.buffsEl = $('buffs');
     this.bossWrap = $('bosswrap');
     this.bossFill = $('bossfill');
@@ -44,10 +49,11 @@ export class HUD {
   }
 
   /* ---------------- vitals ---------------- */
-  setHp(hp, max, overshield = 0) {
+  setHp(hp, max, overshield = 0, healing = false) {
     const p = Math.max(0, hp) / max;
     this.hpFill.style.width = p * 100 + '%';
-    this.hpFill.classList.toggle('low', p <= 0.3);
+    this.hpFill.classList.toggle('low', p <= 0.3 && !healing);
+    this.hpFill.classList.toggle('healing', healing);
     this.hpText.textContent =
       Math.max(0, Math.ceil(hp)) + (overshield > 0 ? ` +${Math.ceil(overshield)}` : '');
     this.hpText.classList.toggle('shielded', overshield > 0);
@@ -130,6 +136,38 @@ export class HUD {
     this.dashFill.style.width = cooldownPct * 100 + '%';
   }
 
+  /* ---------------- medkit ---------------- */
+  setMedkits(n, max) {
+    this.medMeter.textContent = '';
+    for (let i = 0; i < max; i++) {
+      const pip = document.createElement('span');
+      pip.className = 'medpip' + (i < n ? ' on' : '');
+      this.medMeter.appendChild(pip);
+    }
+    this.medRow.classList.toggle('empty', n === 0);
+    document.getElementById('medbtn')?.classList.toggle('spent', n === 0);
+  }
+
+  /** Green wash + rising counter while a medkit is being applied. */
+  healing(on) {
+    this.healVig.classList.toggle('on', on);
+    this.medRow.classList.toggle('active', on);
+  }
+
+  setHealAmount(n) {
+    if (n <= 0) {
+      this.healNum.textContent = '';
+      this.healNum.classList.remove('on');
+      return;
+    }
+    this.healNum.textContent = '+' + Math.round(n);
+    this.healNum.classList.add('on');
+  }
+
+  healBlocked(reason) {
+    this.feed(reason, 'warn');
+  }
+
   /* ---------------- buffs ---------------- */
   setBuffs(buffs) {
     const seen = new Set();
@@ -186,6 +224,12 @@ export class HUD {
   setAds(on) {
     this.xh.classList.toggle('ads', on);
     document.body.classList.toggle('ads', on);
+  }
+
+  /** Full scope overlay — sniper only. Hides the normal crosshair. */
+  setScope(on) {
+    this.scope.classList.toggle('on', on);
+    this.xh.classList.toggle('scoped', on);
   }
 
   damageFlash(on) {
@@ -305,6 +349,9 @@ export class HUD {
   }
 
   clearFeed() {
+    this.setScope(false);
+    this.healing(false);
+    this.setHealAmount(0);
     this.feedEl.innerHTML = '';
     this.buffsEl.innerHTML = '';
     this._buffNodes.clear();

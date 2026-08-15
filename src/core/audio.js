@@ -129,6 +129,16 @@ export const sfx = {
     blip(1600, 0.28, 'sawtooth', 0.05, 180);
     noiseHit(0.3, 0.06, 3200, 2);
   },
+  sniper: () => {
+    blip(140, 0.4, 'sawtooth', 0.09, 55);
+    blip(2200, 0.12, 'square', 0.035, 700);
+    noiseHit(0.45, 0.1, 2000, 0.5);
+  },
+  oneShot: () => {
+    // the "you dropped it in one" flourish
+    [880, 1318, 1760].forEach((f, i) => blip(f, 0.22, 'square', 0.055, 0, i * 0.05));
+    blip(90, 0.5, 'sine', 0.07, 45);
+  },
   charge: () => blip(220, 0.55, 'triangle', 0.03, 1400),
   hit: () => blip(800, 0.06, 'square', 0.05, 500),
   head: () => blip(1400, 0.09, 'square', 0.06, 800),
@@ -175,6 +185,18 @@ export const sfx = {
     blip(320, 1.1, 'sawtooth', 0.08, 40);
     blip(160, 1.3, 'square', 0.05, 25, 0.08);
   },
+  medkitGet: () => {
+    blip(660, 0.1, 'triangle', 0.04, 880);
+    blip(990, 0.14, 'triangle', 0.035, 1320, 0.09);
+  },
+  heal: () => {
+    // soft rising chord — reads as "recovering" rather than "picked up"
+    [392, 523, 659, 784, 1046].forEach((f, i) => blip(f, 0.5, 'triangle', 0.045, 0, i * 0.09));
+    blip(160, 0.5, 'sine', 0.05, 320);
+    noiseHit(0.5, 0.02, 3200, 1.4, 0.1);
+  },
+  healDenied: () => blip(180, 0.12, 'square', 0.035, 120),
+
   // --- gate / wormhole ---
   enter: () => {
     [330, 440, 587, 880].forEach((f, i) => blip(f, 0.3, 'triangle', 0.05, 0, i * 0.07));
