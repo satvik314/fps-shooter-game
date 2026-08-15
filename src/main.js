@@ -50,7 +50,7 @@ const canvas = document.getElementById('scene');
 const hud = new HUD();
 
 const screens = new Screens({
-  onStart: () => game.startRun(),
+  onStart: (rivals) => game.startRun(rivals),
   onRetry: () => game.startRun(),
   onResume: () => game.resume(),
   onQuit: () => game.quitToMenu(),
@@ -148,7 +148,10 @@ addEventListener('keydown', (e) => {
   if (e.code !== 'Enter') return;
   if (!game.screens.menu.classList.contains('hidden')) {
     e.preventDefault();
-    game.startRun();
+    document.getElementById('startbtn').click();
+  } else if (!game.screens.rivals.classList.contains('hidden')) {
+    e.preventDefault();
+    document.getElementById('rivalconfirm').click();
   } else if (!game.screens.death.classList.contains('hidden')) {
     e.preventDefault();
     game.startRun();

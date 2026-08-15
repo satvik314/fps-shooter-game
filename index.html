@@ -97,6 +97,21 @@
   </div>
 </div>
 
+<!-- ============================ RIVAL SELECT ============================ -->
+<div class="screen hidden rival-screen" id="rivals">
+  <div class="rival-shell">
+    <div class="rival-kicker">THREAT DECK // RUN CONFIGURATION</div>
+    <h2>SELECT YOUR <span>RIVALS</span></h2>
+    <p class="rival-intro">GRIN always finds a way in. Choose two more living doodles to hunt you through the grid. RED RONIN arrives every fifth wave.</p>
+    <div class="rival-count" id="rivalcount">2 / 2 OPTIONAL RIVALS LOCKED</div>
+    <div class="rival-cards" id="rivalcards"></div>
+    <div class="rival-actions ui-interactive">
+      <button class="btn ghost" id="rivalback">BACK</button>
+      <button class="btn" id="rivalconfirm">ENTER THE GRID</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================ BRIEFING ============================ -->
 <div class="screen hidden modal" id="briefing">
   <div class="panel">
@@ -104,16 +119,16 @@
     <div class="brief-grid">
       <div class="brief-card">
         <h3>THE GRID</h3>
-        <p>Endless waves of Glowbots spawn into the arena. Clear a wave, earn an upgrade, face a bigger one. Every fifth wave sends an <b>OVERLORD</b>.</p>
+        <p>Endless waves of living doodles tear into the arena. Clear a wave, earn an upgrade, face a bigger one. Every fifth wave sends <b>RED RONIN</b>.</p>
       </div>
       <div class="brief-card">
         <h3>HOSTILES</h3>
         <ul>
-          <li><b>GLOWBOT</b> — baseline chaser.</li>
-          <li><b>ZIPBOT</b> — fast, fragile, swarms.</li>
-          <li><b>TITAN</b> — heavy armour, heavy fists.</li>
-          <li><b>SEER</b> — keeps range, throws plasma.</li>
-          <li><b>OVERLORD</b> — boss. Summons minions.</li>
+          <li><b>GRIN</b> — the relentless baseline hunter.</li>
+          <li><b>SMOKE RIDER</b> — fast, fragile, swarms.</li>
+          <li><b>GLITCH</b> — heavy armour, heavy fists.</li>
+          <li><b>DAWG</b> — keeps range, throws plasma.</li>
+          <li><b>RED RONIN</b> — boss. Summons minions.</li>
         </ul>
       </div>
       <div class="brief-card">
@@ -258,7 +273,7 @@
   </div>
 
   <div id="bosswrap">
-    <div id="bossname">OVERLORD</div>
+    <div id="bossname">RED RONIN</div>
     <div id="bossbar"><div id="bossfill"></div></div>
   </div>
 

@@ -4,8 +4,8 @@
 
 A neon arena FPS built with **Vite + three.js**. Step through the gate into
 Vedaant Singh's universe, ride a wormhole to the grid, then survive endless
-waves of Glowbots — picking an augment after every wave and trying not to meet
-the Overlord unprepared.
+waves of living doodles — picking an augment after every wave and trying not to
+meet Red Ronin unprepared.
 
 This is a full working prototype: a modular rebuild of the original single-file
 HTML version, plus a three-part entry sequence, a complete light mode, three
@@ -97,7 +97,7 @@ without rebuilding the scene. The choice persists.
 **The Longshot** one-shots any enemy you hit in the head, at any range, no
 matter how much health it has. Wild from the hip and pinpoint through the
 scope, which replaces the viewmodel with a proper scope overlay at 24° FOV.
-The one exception is the Overlord: a boss takes 25% of its maximum health from
+The one exception is Red Ronin: a boss takes 25% of its maximum health from
 a headshot instead of dying outright, because a one-shot boss is no boss at all.
 
 **The medkit.** One is issued at the start of every wave (stockpiling up to
@@ -107,9 +107,11 @@ shield refills along an eased curve as a `+70` counter climbs and the world
 washes green — and you cannot fire, reload or swap weapons for the ~1.2s it
 takes. It refuses politely if you have no kit or are already at full shield.
 
-**Five enemy types.** Glowbot (baseline chaser), Zipbot (fast swarm), Titan
-(armoured heavy), Seer (keeps range, throws plasma), and the **Overlord** boss
-every fifth wave — which strafes, fires three-round bursts and summons minions.
+**Five living-doodle enemies.** Grin (baseline chaser), Smoke Rider (fast
+swarm), Glitch (armoured heavy), Dawg (keeps range, throws plasma), and the
+**Red Ronin** boss every fifth wave — which strafes, fires three-round bursts
+and summons minions. After choosing JACK IN, the threat-deck screen lets the
+player pick two optional rivals alongside Grin; Red Ronin is inevitable.
 Elites carry health bars; the boss gets a HUD bar.
 
 **Roguelite augments.** Clear a wave, pick one of three cards from a pool of 15:
@@ -143,7 +145,8 @@ src/
     storage.js          settings + personal bests (localStorage, fails soft)
   world/
     arena.js            grid floor, cover, walls, ambient neon, spawn clearance
-    avatar.js           the blocky Glowbot chassis and its face variants
+    doodleAvatar.js     transparent cutout rigs, hitboxes and character motion
+    avatar.js           legacy blocky Glowbot chassis
     gfx.js              themed material factories + registries for repainting
     fx.js               debris, sparks, damage numbers, tracers, rings, lights
   game/

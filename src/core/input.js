@@ -164,7 +164,11 @@ export class Input {
 
   requestLock() {
     if (this.mode !== 'mouse') return;
-    this.canvas.requestPointerLock?.();
+    // Some embedded/automated browsers reject pointer lock even after a user
+    // gesture. Button controls still work, so fail softly instead of leaking an
+    // unhandled promise rejection into the game console.
+    const request = this.canvas.requestPointerLock?.();
+    request?.catch?.(() => {});
   }
 
   releaseLock() {

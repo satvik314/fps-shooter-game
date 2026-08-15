@@ -130,6 +130,7 @@ export class Game {
     this.shots = 0;
     this.hits = 0;
     this.difficulty = 1;
+    this.activeRivals = [...(settings.selectedRivals || ['grunt', 'zip', 'seer'])];
     this.boss = null;
 
     this.mode = 'menu'; // 'menu' | 'playing' | 'paused' | 'dead' | 'upgrading'
@@ -199,7 +200,10 @@ export class Game {
     };
   }
 
-  startRun() {
+  startRun(rivals = settings.selectedRivals) {
+    this.activeRivals = Array.from(new Set(['grunt', ...(rivals || [])])).filter(
+      (id) => ['grunt', 'zip', 'titan', 'seer'].includes(id)
+    );
     this.resetRun();
     this.mode = 'playing';
     this.setPlayView();
@@ -697,11 +701,11 @@ export class Game {
     this.hud.setWave(this.wave);
     this.unlockWeaponsFor(this.wave);
 
-    const comp = rollWaveComposition(this.wave);
+    const comp = rollWaveComposition(this.wave, this.activeRivals);
     const isBoss = comp.includes('boss');
     this.hud.announce(
       'WAVE ' + this.wave,
-      isBoss ? 'OVERLORD DETECTED' : this.wave % 3 === 0 ? 'HEAVY GLOWBOTS INBOUND' : 'THE GRID HUNGERS',
+      isBoss ? 'RED RONIN DETECTED' : this.wave % 3 === 0 ? 'HEAVY DOODLES INBOUND' : 'THE PAPER TEARS OPEN',
       isBoss ? 'danger' : ''
     );
     sfx.wave();
@@ -730,18 +734,19 @@ export class Game {
     this.enemies.push(e);
     if (e.boss) {
       this.boss = e;
-      this.hud.announce('OVERLORD', 'WAVE ' + this.wave + ' BOSS', 'danger');
+      this.hud.announce('RED RONIN', 'WAVE ' + this.wave + ' BOSS', 'danger');
     }
     return e;
   }
 
   summonMinions(pos, n) {
-    this.hud.feed('OVERLORD SUMMONS', 'warn');
+    this.hud.feed('RED RONIN SUMMONS', 'warn');
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
       const x = Math.max(-ARENA + 4, Math.min(ARENA - 4, pos.x + Math.cos(a) * 5));
       const z = Math.max(-ARENA + 4, Math.min(ARENA - 4, pos.z + Math.sin(a) * 5));
-      this.enemies.push(new Enemy(this, 'zip', x, z, this.wave));
+      const minionType = this.activeRivals.includes('zip') ? 'zip' : 'grunt';
+      this.enemies.push(new Enemy(this, minionType, x, z, this.wave));
     }
     this.hud.setHostiles(this.enemies.length + this.spawnQueue.length);
   }
@@ -797,7 +802,7 @@ export class Game {
     if (enemy.boss) {
       this.boss = null;
       this.hud.setBoss(null);
-      this.hud.announce('OVERLORD DOWN', '+' + gained + ' POINTS', 'good');
+      this.hud.announce('RED RONIN DOWN', '+' + gained + ' POINTS', 'good');
       this.slowmo(1.1);
       for (let k = 0; k < 3; k++) {
         this.dropPickup(origin.clone().add(new THREE.Vector3(rng(-3, 3), 0, rng(-3, 3))), true);

@@ -14,6 +14,7 @@ const DEFAULTS = {
   bestKills: 0,
   bestScore: 0,
   seenIntro: false,
+  selectedRivals: ['grunt', 'zip', 'seer'],
 };
 
 function read() {

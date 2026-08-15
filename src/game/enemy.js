@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { makeAvatar } from '../world/avatar.js';
+import { makeDoodleAvatar } from '../world/doodleAvatar.js';
 import { haloSprite, rng, disposeObject, releaseMaterial } from '../world/gfx.js';
 import { resolveCollisions, ARENA } from '../world/arena.js';
 import { theme, neon } from '../core/theme.js';
@@ -13,7 +13,7 @@ import { sfx } from '../core/audio.js';
 export const ENEMY_TYPES = {
   grunt: {
     id: 'grunt',
-    name: 'GLOWBOT',
+    name: 'GRIN',
     scale: 1,
     hp: (w) => 60 + w * 12,
     speed: (w) => Math.min(5.2, 2.9 + w * 0.1),
@@ -24,7 +24,7 @@ export const ENEMY_TYPES = {
   },
   zip: {
     id: 'zip',
-    name: 'ZIPBOT',
+    name: 'SMOKE RIDER',
     scale: 0.72,
     hp: (w) => 34 + w * 7,
     speed: (w) => Math.min(7.4, 5 + w * 0.14),
@@ -36,7 +36,7 @@ export const ENEMY_TYPES = {
   },
   titan: {
     id: 'titan',
-    name: 'TITAN',
+    name: 'GLITCH',
     scale: 1.75,
     hp: (w) => 240 + w * 45,
     speed: () => 2,
@@ -49,7 +49,7 @@ export const ENEMY_TYPES = {
   },
   seer: {
     id: 'seer',
-    name: 'SEER',
+    name: 'DAWG',
     scale: 1.05,
     hp: (w) => 70 + w * 14,
     speed: (w) => Math.min(3.4, 2.1 + w * 0.06),
@@ -63,7 +63,7 @@ export const ENEMY_TYPES = {
   },
   boss: {
     id: 'boss',
-    name: 'OVERLORD',
+    name: 'RED RONIN',
     scale: 3.1,
     hp: (w) => 1200 + w * 260,
     speed: () => 2.3,
@@ -104,10 +104,11 @@ export class Enemy {
     this.typeId = type.id;
 
     const idx = type.idx ?? Math.floor(Math.random() * 5);
-    const av = makeAvatar(type.scale, idx, type.mood);
+    const av = makeDoodleAvatar(type.id, type.scale, idx);
     this.av = av;
     this.group = av.group;
     this.group.position.set(x, -2.4 * type.scale, z);
+    av.setSpawnProgress?.(0);
 
     this.maxhp = Math.round(type.hp(wave) * (game.difficulty || 1));
     this.hp = this.maxhp;
@@ -168,13 +169,15 @@ export class Enemy {
       sfx.spawn();
     }
 
-    this.hitMeshes = [];
-    this.group.traverse((o) => {
-      if (o.isMesh && !o.userData.isEdge) {
-        o.userData.enemy = this;
-        o.userData.isHead = o === av.head;
-        this.hitMeshes.push(o);
-      }
+    this.hitMeshes = av.hitMeshes || [];
+    if (!this.hitMeshes.length) {
+      this.group.traverse((o) => {
+        if (o.isMesh && !o.userData.isEdge) this.hitMeshes.push(o);
+      });
+    }
+    this.hitMeshes.forEach((o) => {
+      o.userData.enemy = this;
+      o.userData.isHead = o === av.head;
     });
   }
 
@@ -263,6 +266,7 @@ export class Enemy {
       this.spawnT -= dt;
       const k = 1 - Math.max(this.spawnT, 0) / 0.6;
       this.group.position.y = -2.4 * this.scale * (1 - k);
+      this.av.setSpawnProgress?.(k);
       if (this.beam) {
         this.beam.material.opacity = 0.4 * (this.spawnT / 0.6);
         this.beam.scale.x = this.beam.scale.z = 1 + (1 - this.spawnT / 0.6) * 1.5;
@@ -277,6 +281,7 @@ export class Enemy {
     }
 
     this.group.position.y = 0;
+    this.av.setSpawnProgress?.(1);
     if (this.slowT > 0) this.slowT -= dt;
 
     const dx = player.pos.x - this.group.position.x;
@@ -307,6 +312,9 @@ export class Enemy {
           o.material.emissiveIntensity = on ? 1.6 : 0.35 * rest;
         }
       });
+      this.av.setHitFlash?.(on);
+    } else {
+      this.av.setHitFlash?.(false);
     }
   }
 
@@ -315,7 +323,7 @@ export class Enemy {
       this.step(dt, dirX, dirZ, speed);
       this.animateWalk(dt, speed);
     } else {
-      this.av.armL.rotation.x = this.av.armR.rotation.x = -1.4 + Math.sin(t * 10) * 0.15;
+      this.av.attack?.(t);
       this.attackCd -= dt;
       if (this.attackCd <= 0) {
         this.attackCd = this.type.attackCd ?? 1;
@@ -352,7 +360,7 @@ export class Enemy {
     this.shootCd -= dt;
     if (this.shootCd <= 0 && dist < 42) {
       this.shootCd = this.boss ? 0.85 : rng(1.6, 2.6);
-      this.av.armL.rotation.x = this.av.armR.rotation.x = -1.5;
+      this.av.attack?.(t);
       const origin = this.group.position
         .clone()
         .setY(1.7 * this.scale)
@@ -397,6 +405,11 @@ export class Enemy {
 
   animateWalk(dt, speed) {
     this.walkPhase += dt * speed * 2.2;
+    if (this.av.animateWalk) {
+      this.av.animateWalk(this.walkPhase, speed);
+      this.group.position.y = Math.abs(Math.sin(this.walkPhase)) * 0.035;
+      return;
+    }
     const sw = Math.sin(this.walkPhase) * 0.7;
     this.av.armL.rotation.x = sw;
     this.av.armR.rotation.x = -sw;
@@ -407,18 +420,20 @@ export class Enemy {
 }
 
 /** Wave composition — what spawns, and how much of it. */
-export function rollWaveComposition(wave) {
+export function rollWaveComposition(wave, activeRivals = ['grunt', 'zip', 'titan', 'seer']) {
   const list = [];
+  const roster = new Set(['grunt', ...activeRivals.filter((id) => id !== 'boss')]);
   const isBossWave = wave % 5 === 0;
   if (isBossWave) list.push('boss');
 
   const budget = 3 + Math.floor(wave * 1.35);
   for (let i = 0; i < budget; i++) {
     const r = Math.random();
-    if (wave >= 3 && r < 0.16) list.push('zip');
-    else if (wave >= 4 && r < 0.28) list.push('seer');
-    else if (wave >= 3 && r < 0.38) list.push('titan');
-    else list.push('grunt');
+    let typeId = 'grunt';
+    if (wave >= 3 && r < 0.16) typeId = 'zip';
+    else if (wave >= 4 && r < 0.28) typeId = 'seer';
+    else if (wave >= 3 && r < 0.38) typeId = 'titan';
+    list.push(roster.has(typeId) ? typeId : 'grunt');
   }
   return list;
 }
