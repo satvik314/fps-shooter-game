@@ -175,6 +175,22 @@ export const sfx = {
     blip(320, 1.1, 'sawtooth', 0.08, 40);
     blip(160, 1.3, 'square', 0.05, 25, 0.08);
   },
+  // --- gate / wormhole ---
+  enter: () => {
+    [330, 440, 587, 880].forEach((f, i) => blip(f, 0.3, 'triangle', 0.05, 0, i * 0.07));
+    blip(60, 0.8, 'sine', 0.07, 40);
+  },
+  warpIn: () => {
+    blip(50, 2.2, 'sawtooth', 0.05, 320);
+    noiseHit(2.4, 0.05, 300, 0.5);
+  },
+  warpPulse: (i = 0) => blip(180 + i * 40, 0.16, 'triangle', 0.028, 700 + i * 90),
+  arrive: () => {
+    blip(1200, 0.5, 'sawtooth', 0.06, 90);
+    blip(70, 1.4, 'sine', 0.1, 45);
+    noiseHit(0.9, 0.09, 1800, 0.4);
+  },
+
   // --- intro stingers ---
   boot: () => {
     blip(60, 0.6, 'sine', 0.05, 120);

@@ -1,12 +1,15 @@
 # RIVALS — by Tempest_YT
 
-A neon arena FPS built with **Vite + three.js**. Survive endless waves of Glowbots
-on the grid, pick an augment after every wave, and try not to meet the Overlord
-unprepared.
+**Made for Vedaant.**
+
+A neon arena FPS built with **Vite + three.js**. Step through the gate into
+Vedaant Singh's universe, ride a wormhole to the grid, then survive endless
+waves of Glowbots — picking an augment after every wave and trying not to meet
+the Overlord unprepared.
 
 This is a full working prototype: a modular rebuild of the original single-file
-HTML version, plus a cinematic intro, a complete light mode, three weapons,
-five enemy types, a roguelite upgrade system, drops, and a radar.
+HTML version, plus a three-part entry sequence, a complete light mode, three
+weapons, five enemy types, a roguelite upgrade system, drops, and a radar.
 
 ---
 
@@ -52,12 +55,27 @@ start in button mode; touchscreen laptops stay on mouse.
 
 ## What's in it
 
-**Intro experience.** A CRT power-on, a typed `TEMPEST//NET` boot log with a
-loading bar, a riser into a whiteout, then **RIVALS** slams in one letter at a
-time — each with its own impact hit and screen rumble — before handing the
-credit to **TEMPEST_YT**. Skippable at any point with click / `Space` / `Esc`.
-First visit gets the full sequence; later visits get the short cut, and
-**REPLAY INTRO** on the menu always plays it in full.
+**The entry experience**, in three beats:
+
+1. **The gate.** A spinning portal, and the question: *You are now entering
+   **Vedaant Singh's universe** — are you ready?* Nothing moves until you answer.
+   That deliberate click is also the user gesture browsers require before audio
+   is allowed to play, so everything after it has sound.
+2. **The journey.** A wormhole rendered in 3D — a tunnel of neon rings rushing
+   past, warp streaks stretching with velocity, and a light at the far end that
+   swells until it swallows the screen. It accelerates the whole way, with
+   status beats and a charge bar overlaid.
+3. **The arrival.** You come out the other side into the arena, and **RIVALS**
+   slams in one letter at a time — each with its own impact hit and screen
+   rumble — before handing the credit to **TEMPEST_YT**.
+
+Skippable from the journey onward with the SKIP button, a click, `Space` or
+`Esc`. Repeat visits take a shorter trip through the wormhole; **REPLAY INTRO**
+on the menu restores the full-length journey.
+
+The wormhole is deliberately deep-space dark in both themes — it's the void
+between worlds, and its glow depends on additive blending, which would render
+as flat white over a light background.
 
 **Light mode.** Not a CSS filter — a second complete palette. Both the interface
 tokens *and* the 3D scene swap: sky, fog colour and density, three light
@@ -119,12 +137,13 @@ src/
     upgrades.js         augment cards
     pickups.js          drops
   ui/
-    intro.js            the abortable intro timeline
+    intro.js            the abortable gate → journey → arrival timeline
+    wormhole.js         the 3D wormhole, borrowing the game's renderer
     hud.js              every heads-up element, including the radar canvas
     screens.js          menu, briefing, settings, pause, upgrade picker, death
 ```
 
-Two conventions are worth knowing before editing:
+Three conventions are worth knowing before editing:
 
 - **Colours are referenced by neon *index*, not hex.** `neonEdges(mesh, 2)` means
   "accent 2", which resolves differently per theme. That is what makes the live
@@ -133,6 +152,10 @@ Two conventions are worth knowing before editing:
   registries so theme repaints reach every live object; `disposeObject` and
   `FX._release` drop entries as objects die. The FX pools are hard-capped so a
   wave wiping at once can't flood the scene.
+- **The renderer can be lent out.** `game.setRenderOverride(fn)` hands the
+  render loop to something else — that's how the wormhole draws its own scene
+  through the game's renderer without a second WebGL context. It disposes
+  itself and hands rendering back when the journey ends, however it ends.
 
 ---
 
@@ -140,6 +163,7 @@ Two conventions are worth knowing before editing:
 
 - Frame delta is clamped to 50 ms, so on very slow hardware the game runs in
   slow motion rather than letting enemies tunnel through walls.
-- Audio only starts after the first interaction — browser autoplay policy.
+- Audio only starts after the first interaction — which is what the gate's
+  "I'm ready" button is for.
 - Tested in Chromium at desktop, tablet and phone viewports, in both themes,
   against both the dev server and the production build.

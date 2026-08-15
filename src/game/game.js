@@ -132,6 +132,7 @@ export class Game {
 
     this.raycaster = new THREE.Raycaster();
     this.clock = new THREE.Clock();
+    this._renderOverride = null;
 
     this.equip(0, true);
     this.hud.buildWeapons(this.loadout);
@@ -159,6 +160,18 @@ export class Game {
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(innerWidth, innerHeight);
+  }
+
+  /**
+   * Lend the renderer to something else (the wormhole intro). While an override
+   * is set the game scene is neither stepped nor drawn.
+   */
+  setRenderOverride(fn) {
+    this._renderOverride = fn;
+  }
+
+  clearRenderOverride() {
+    this._renderOverride = null;
   }
 
   attachInput(input) {
@@ -1067,6 +1080,11 @@ export class Game {
     requestAnimationFrame(this._loop);
     const raw = Math.min(this.clock.getDelta(), 0.05);
     const t = this.clock.elapsedTime;
+
+    if (this._renderOverride) {
+      this._renderOverride(raw, t);
+      return;
+    }
 
     this.timeScale += (this.targetTimeScale - this.timeScale) * Math.min(1, raw * 6);
     const dt = raw * this.timeScale;
