@@ -42,7 +42,8 @@ at runtime.
 | Fire | left click or `Q` | `FIRE` |
 | Aim down sights | right click or `C` | `AIM` (toggle) |
 | Reload | `R` | `R` |
-| Weapons | `1` `2` `3` / mouse wheel | `SWAP` |
+| Medkit | `H` | `✚` |
+| Weapons | `1` `2` `3` `4` / mouse wheel | `SWAP` |
 | Pause | `Esc` / `P` | — |
 | Toggle theme | `T` | theme chip, top right |
 | Mute | `M` | sound chip, top right |
@@ -84,13 +85,27 @@ strength, halo opacity, damage-number colours and the viewmodel finish. Every
 material registers a repaint callback, so the theme flips live mid-firefight
 without rebuilding the scene. The choice persists.
 
-**Three weapons**, each with its own model, feel and unlock:
+**Four weapons**, each with its own model, feel and unlock:
 
 | | Unlock | Behaviour |
 | --- | --- | --- |
 | Pulse Rifle | start | full auto, tight spread, all-rounder |
 | Scattergun | wave 2 | 9 pellets, brutal up close, slow |
+| Longshot | wave 3 | scoped sniper — **a headshot is an instant kill** |
 | Railgun | wave 4 | hold to charge, pierces a whole line of enemies |
+
+**The Longshot** one-shots any enemy you hit in the head, at any range, no
+matter how much health it has. Wild from the hip and pinpoint through the
+scope, which replaces the viewmodel with a proper scope overlay at 24° FOV.
+The one exception is the Overlord: a boss takes 25% of its maximum health from
+a headshot instead of dying outright, because a one-shot boss is no boss at all.
+
+**The medkit.** One is issued at the start of every wave (stockpiling up to
+three) and heals **70** shield on `H`. It is a committed action, not a free
+top-up: the rifle drops out of view, the kit swings up and pops its lid, the
+shield refills along an eased curve as a `+70` counter climbs and the world
+washes green — and you cannot fire, reload or swap weapons for the ~1.2s it
+takes. It refuses politely if you have no kit or are already at full shield.
 
 **Five enemy types.** Glowbot (baseline chaser), Zipbot (fast swarm), Titan
 (armoured heavy), Seer (keeps range, throws plasma), and the **Overlord** boss
@@ -105,7 +120,8 @@ cannon, overshield. They stack, and the run's build is yours.
 **Drops.** Shield, full ammo, double damage, rapid fire, and a rare Grid Purge
 that wipes the field.
 
-**Plus:** radar with off-screen contact bearings, combo multiplier, killstreak
+**Plus:** an `ELIMINATED <TARGET>` kill feed (`HEADSHOT ✕` and `ONE SHOT ✕`
+variants), radar with off-screen contact bearings, combo multiplier, killstreak
 callouts, directional damage indicators, dash with i-frames, aim-down-sights,
 hit markers with headshot variants, floating damage numbers, gib physics,
 adaptive music that speeds up as waves escalate, pause menu, settings
@@ -134,6 +150,7 @@ src/
     game.js             renderer, run state, the update/render loop
     enemy.js            enemy archetypes, AI, wave composition
     weapons.js          weapon data + first-person models
+    medkit.js           medkit viewmodel, heal curve and constants
     upgrades.js         augment cards
     pickups.js          drops
   ui/
@@ -152,6 +169,9 @@ Three conventions are worth knowing before editing:
   registries so theme repaints reach every live object; `disposeObject` and
   `FX._release` drop entries as objects die. The FX pools are hard-capped so a
   wave wiping at once can't flood the scene.
+- **Never give an instance property the same name as a method.** `this.heal`
+  as heal-in-progress state silently shadowed the `heal(amount)` method and
+  broke every heal in the game; the state is `this.healing` for that reason.
 - **The renderer can be lent out.** `game.setRenderOverride(fn)` hands the
   render loop to something else — that's how the wormhole draws its own scene
   through the game's renderer without a second WebGL context. It disposes

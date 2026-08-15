@@ -16,15 +16,24 @@ export const KEYMAP = {
   reload: ['KeyR'],
   jump: ['Space'],
   dash: ['KeyE'],
+  heal: ['KeyH'],
   pause: ['Escape', 'KeyP'],
   theme: ['KeyT'],
   mute: ['KeyM'],
   w1: ['Digit1'],
   w2: ['Digit2'],
   w3: ['Digit3'],
+  w4: ['Digit4'],
 };
 
-const NO_EDGES = () => ({ jump: false, dash: false, reload: false, weapon: null, pause: false });
+const NO_EDGES = () => ({
+  jump: false,
+  dash: false,
+  reload: false,
+  heal: false,
+  weapon: null,
+  pause: false,
+});
 
 export class Input {
   constructor(canvas) {
@@ -95,9 +104,11 @@ export class Input {
       if (is('jump', e.code)) this.edges.jump = true;
       if (is('dash', e.code)) this.edges.dash = true;
       if (is('reload', e.code)) this.edges.reload = true;
+      if (is('heal', e.code)) this.edges.heal = true;
       if (is('w1', e.code)) this.edges.weapon = 0;
       if (is('w2', e.code)) this.edges.weapon = 1;
       if (is('w3', e.code)) this.edges.weapon = 2;
+      if (is('w4', e.code)) this.edges.weapon = 3;
     });
 
     addEventListener('keyup', (e) => {
@@ -276,6 +287,7 @@ export class Input {
     bind('jumpbtn', () => (this.edges.jump = true));
     bind('dashbtn', () => (this.edges.dash = true));
     bind('rlbtn', () => (this.edges.reload = true));
+    bind('medbtn', () => (this.edges.heal = true));
     bind('adsbtn', () => {
       this._btnAds = !this._btnAds;
       document.getElementById('adsbtn')?.classList.toggle('active', this._btnAds);
